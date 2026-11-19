@@ -1,0 +1,4 @@
+Flask
+mcrcon
+google-generativeai
+gunicorn
