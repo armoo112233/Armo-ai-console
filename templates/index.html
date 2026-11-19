@@ -1,0 +1,137 @@
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Armo AI Console</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101522;color:#fff;font-family:Tahoma,Arial,sans-serif;padding:20px}
+main{max-width:700px;margin:30px auto}
+.card{background:#1b2435;border:1px solid #303d54;border-radius:16px;padding:20px;margin-bottom:16px}
+h1{color:#55d6be;text-align:center}
+input,textarea{width:100%;padding:14px;border-radius:10px;border:1px solid #45536c;background:#101827;color:white;margin:8px 0;font-size:15px}
+button{background:#20b99c;color:#071713;border:0;border-radius:10px;padding:12px 18px;font-weight:bold;cursor:pointer;margin:5px}
+button.secondary{background:#394963;color:white}
+#chat{height:300px;overflow:auto;background:#101827;border-radius:10px;padding:12px;margin:12px 0}
+.msg{padding:10px;margin:8px 0;border-radius:10px;background:#26354b;line-height:1.8;overflow-wrap:anywhere}
+.user{background:#174b46}
+.small{color:#aab8ce;font-size:13px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<main>
+<div class="card">
+<h1>Armo AI Console</h1>
+<p class="small" style="text-align:center">دستیار هوشمند مدیریت سرور ماینکرفت</p>
+</div>
+
+<div class="card" id="login">
+<h3>ورود مدیر</h3>
+<input id="password" type="password" placeholder="رمز پنل">
+<button onclick="login()">ورود به پنل</button>
+<p id="loginMsg" class="small"></p>
+</div>
+
+<div id="panel" class="hidden">
+<div class="card">
+<h3>وضعیت سرور</h3>
+<p id="status">هنوز بررسی نشده</p>
+<button onclick="checkStatus()">تست اتصال RCON</button>
+</div>
+
+<div class="card">
+<h3>گفت‌وگو با هوش مصنوعی</h3>
+<div id="chat"></div>
+<textarea id="message" rows="3" placeholder="مثلاً وضعیت سرور رو بررسی کن..."></textarea>
+<button onclick="sendMessage()">ارسال پیام</button>
+<p id="chatMsg" class="small"></p>
+</div>
+
+<div class="card">
+<h3>اجرای دستور</h3>
+<input id="command" placeholder="مثلاً list">
+<button onclick="executeCommand()">اجرای دستور</button>
+<p id="result" class="small"></p>
+</div>
+</div>
+</main>
+
+<script>
+async function api(url,data){
+ const response=await fetch(url,{
+  method:data?"POST":"GET",
+  headers:{"Content-Type":"application/json"},
+  body:data?JSON.stringify(data):undefined
+ });
+ const result=await response.json();
+ if(!response.ok) throw new Error(result.error||"خطا در ارتباط");
+ return result;
+}
+
+async function login(){
+ const msg=document.getElementById("loginMsg");
+ msg.textContent="در حال ورود...";
+ try{
+  await api("/api/login",{password:document.getElementById("password").value});
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("panel").classList.remove("hidden");
+  checkStatus();
+ }catch(e){msg.textContent=e.message;}
+}
+
+async function checkStatus(){
+ const el=document.getElementById("status");
+ el.textContent="در حال بررسی...";
+ try{
+  const r=await api("/api/status");
+  el.textContent=r.result||"اتصال برقرار شد";
+ }catch(e){el.textContent="خطا: "+e.message;}
+}
+
+function addMessage(text,type){
+ const div=document.createElement("div");
+ div.className="msg "+(type||"");
+ div.textContent=text;
+ const chat=document.getElementById("chat");
+ chat.appendChild(div);
+ chat.scrollTop=chat.scrollHeight;
+}
+
+async function sendMessage(){
+ const input=document.getElementById("message");
+ const message=input.value.trim();
+ if(!message)return;
+ input.value="";
+ addMessage("شما: "+message,"user");
+ document.getElementById("chatMsg").textContent="در حال دریافت پاسخ...";
+ try{
+  const r=await api("/api/chat",{message});
+  addMessage("هوش مصنوعی: "+r.reply);
+  if(r.command){
+   document.getElementById("command").value=r.command;
+   addMessage("دستور پیشنهادی: "+r.command);
+  }
+  document.getElementById("chatMsg").textContent="";
+ }catch(e){
+  document.getElementById("chatMsg").textContent=e.message;
+ }
+}
+
+async function executeCommand(){
+ const input=document.getElementById("command");
+ const command=input.value.trim();
+ if(!command)return;
+ if(!confirm("این دستور روی سرور اجرا شود؟\n"+command))return;
+ const result=document.getElementById("result");
+ result.textContent="در حال اجرا...";
+ try{
+  const r=await api("/api/execute",{command});
+  result.textContent=r.result||"دستور اجرا شد.";
+ }catch(e){result.textContent="خطا: "+e.message;}
+}
+</script>
+</body>
+</html>
